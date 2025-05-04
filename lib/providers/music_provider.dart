@@ -3,6 +3,7 @@ import '../models/music_track.dart';
 import '../services/music_service.dart';
 import '../models/preferences.dart';
 import '../providers/preferences_provider.dart';
+import 'package:just_audio/just_audio.dart';
 
 final musicServiceProvider = Provider((ref) => MusicService());
 
@@ -20,36 +21,51 @@ final currentTrackProvider =
       ),
     );
 
+final playlistTracksProvider =
+    StateNotifierProvider<PlaylistTracksNotifier, List<MusicTrack>>(
+      (ref) => PlaylistTracksNotifier(ref.watch(musicServiceProvider)),
+    );
+
+class PlaylistTracksNotifier extends StateNotifier<List<MusicTrack>> {
+  final MusicService _musicService;
+
+  PlaylistTracksNotifier(this._musicService) : super([]);
+
+  Future<void> playShuffledTracks(List<MusicTrack> tracks) async {
+    if (tracks.isEmpty) return;
+    state = tracks;
+    // Fetch actual stream URLs for each track
+    final List<AudioSource> audioSources = [];
+    for (final track in tracks) {
+      final manifest = await _musicService.getManifest(track.id);
+      final audioStream = manifest.audioOnly.first;
+      audioSources.add(
+        AudioSource.uri(Uri.parse(audioStream.url.toString()), tag: track),
+      );
+    }
+    await _musicService.audioPlayer.setAudioSource(
+      ConcatenatingAudioSource(children: audioSources),
+    );
+    await _musicService.audioPlayer.setShuffleModeEnabled(true);
+    await _musicService.audioPlayer.shuffle();
+    await _musicService.audioPlayer.seek(Duration.zero, index: 0);
+    await _musicService.audioPlayer.play();
+  }
+}
+
 class SearchResultsNotifier extends StateNotifier<List<MusicTrack>> {
   final MusicService _musicService;
 
   SearchResultsNotifier(this._musicService) : super([]);
 
-  Future<List<MusicTrack>> search(String query) async {
-    if (query.isEmpty) {
+  Future<List<MusicTrack>> loadVideo(String videoId) async {
+    if (videoId.isEmpty) {
       state = [];
       return [];
     }
-    final results = await _musicService.searchMusic(query);
+    final results = await _musicService.searchMusic(videoId);
     state = results;
     return results;
-  }
-
-  Future<List<MusicTrack>> getTracksById(List<String> trackIds) async {
-    if (trackIds.isEmpty) return [];
-
-    final allTracks = <MusicTrack>[];
-    for (final trackId in trackIds) {
-      final results = await _musicService.searchMusic(trackId);
-      final matchingTrack =
-          results.where((track) => track.id == trackId).toList();
-      if (matchingTrack.isNotEmpty) {
-        allTracks.add(matchingTrack.first);
-      }
-    }
-
-    state = allTracks;
-    return allTracks;
   }
 }
 
@@ -64,29 +80,31 @@ class CurrentTrackNotifier extends StateNotifier<MusicTrack?> {
     this._searchResults,
   ) : super(null) {
     _restoreLastPlayedTrack();
+
+    // 현재 재생 중인 트랙 상태 업데이트를 위한 리스너 추가
+    _musicService.audioPlayer.currentIndexStream.listen((index) {
+      if (index != null) {
+        final currentSource = _musicService.audioPlayer.audioSource;
+        if (currentSource is ConcatenatingAudioSource &&
+            index < currentSource.children.length) {
+          final source = currentSource.children[index];
+          if (source is UriAudioSource && source.tag is MusicTrack) {
+            state = source.tag as MusicTrack;
+          }
+        }
+      }
+    });
   }
 
   Future<void> _restoreLastPlayedTrack() async {
     final preferences = _preferencesService.loadPreferences();
     if (preferences.lastPlayedTrackId != null) {
-      final tracks = await _searchResults.search(
+      final tracks = await _searchResults.loadVideo(
         preferences.lastPlayedTrackId!,
       );
-      final track = tracks.firstWhere(
-        (track) => track.id == preferences.lastPlayedTrackId,
-        orElse:
-            () => MusicTrack(
-              id: '',
-              title: '',
-              artist: '',
-              thumbnailUrl: '',
-              duration: Duration.zero,
-              url: '',
-            ),
-      );
-      if (track.id.isNotEmpty) {
-        state = track;
-        await _musicService.playTrack(track);
+      if (tracks.isNotEmpty) {
+        state = tracks.first;
+        await _musicService.playTrack(tracks.first);
       }
     }
   }
@@ -107,5 +125,13 @@ class CurrentTrackNotifier extends StateNotifier<MusicTrack?> {
   Future<void> stop() async {
     await _musicService.stop();
     state = null;
+  }
+
+  Future<void> playNext() async {
+    await _musicService.audioPlayer.seekToNext();
+  }
+
+  Future<void> playPrevious() async {
+    await _musicService.audioPlayer.seekToPrevious();
   }
 }

@@ -13,7 +13,9 @@ class SearchResults extends ConsumerWidget {
     final searchResults = ref.watch(searchResultsProvider);
 
     if (searchResults.isEmpty) {
-      return const Center(child: Text('Search for music to start playing'));
+      return const Center(
+        child: Text('Enter a YouTube video ID to start playing'),
+      );
     }
 
     return ListView.builder(
@@ -77,10 +79,7 @@ class SearchResults extends ConsumerWidget {
                                 onTap: () {
                                   ref
                                       .read(playlistsProvider.notifier)
-                                      .addTrackToPlaylist(
-                                        playlist.id,
-                                        track.id,
-                                      );
+                                      .addTrackToPlaylist(playlist.id, track);
                                   Navigator.of(context).pop();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(

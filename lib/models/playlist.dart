@@ -1,35 +1,45 @@
+import 'music_track.dart';
+
 class Playlist {
   final String id;
   final String name;
   final String description;
-  final List<String> trackIds;
+  final List<MusicTrack> tracks;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? youtubePlaylistUrl;
+  final String? youtubePlaylistId;
 
   Playlist({
     required this.id,
     required this.name,
     this.description = '',
-    List<String>? trackIds,
+    List<MusicTrack>? tracks,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) : trackIds = trackIds ?? [],
+    this.youtubePlaylistUrl,
+    this.youtubePlaylistId,
+  }) : tracks = tracks ?? [],
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now();
 
   Playlist copyWith({
     String? name,
     String? description,
-    List<String>? trackIds,
+    List<MusicTrack>? tracks,
     DateTime? updatedAt,
+    String? youtubePlaylistUrl,
+    String? youtubePlaylistId,
   }) {
     return Playlist(
       id: id,
       name: name ?? this.name,
       description: description ?? this.description,
-      trackIds: trackIds ?? this.trackIds,
+      tracks: tracks ?? this.tracks,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
+      youtubePlaylistUrl: youtubePlaylistUrl ?? this.youtubePlaylistUrl,
+      youtubePlaylistId: youtubePlaylistId ?? this.youtubePlaylistId,
     );
   }
 
@@ -38,9 +48,11 @@ class Playlist {
       'id': id,
       'name': name,
       'description': description,
-      'trackIds': trackIds,
+      'tracks': tracks.map((track) => track.toJson()).toList(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'youtubePlaylistUrl': youtubePlaylistUrl,
+      'youtubePlaylistId': youtubePlaylistId,
     };
   }
 
@@ -49,9 +61,18 @@ class Playlist {
       id: json['id'] as String,
       name: json['name'] as String,
       description: json['description'] as String? ?? '',
-      trackIds: (json['trackIds'] as List<dynamic>).cast<String>(),
+      tracks:
+          (json['tracks'] as List<dynamic>?)
+              ?.map(
+                (trackJson) =>
+                    MusicTrack.fromJson(trackJson as Map<String, dynamic>),
+              )
+              .toList() ??
+          [],
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+      youtubePlaylistUrl: json['youtubePlaylistUrl'] as String?,
+      youtubePlaylistId: json['youtubePlaylistId'] as String?,
     );
   }
 }

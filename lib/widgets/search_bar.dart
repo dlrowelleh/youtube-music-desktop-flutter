@@ -19,7 +19,7 @@ class _MusicSearchBarState extends ConsumerState<MusicSearchBar> {
     super.initState();
     _focusNode.addListener(() {
       if (!_focusNode.hasFocus) {
-        _onSearchChanged(_searchController.text);
+        _onSearchSubmitted(_searchController.text);
       }
     });
   }
@@ -31,11 +31,13 @@ class _MusicSearchBarState extends ConsumerState<MusicSearchBar> {
     super.dispose();
   }
 
-  void _onSearchChanged(String query) {
+  void _onSearchSubmitted(String query) {
+    if (query.trim().isEmpty) return;
+
     if (!_isSearching) {
       setState(() => _isSearching = true);
     }
-    ref.read(searchResultsProvider.notifier).search(query);
+    ref.read(searchResultsProvider.notifier).loadVideo(query.trim());
   }
 
   @override
@@ -45,12 +47,11 @@ class _MusicSearchBarState extends ConsumerState<MusicSearchBar> {
       child: TextField(
         controller: _searchController,
         focusNode: _focusNode,
-        onChanged: _onSearchChanged,
         textInputAction: TextInputAction.search,
-        onSubmitted: _onSearchChanged,
+        onSubmitted: _onSearchSubmitted,
         enableInteractiveSelection: true,
         decoration: InputDecoration(
-          hintText: 'Search music...',
+          hintText: 'Search YouTube music...',
           prefixIcon: const Icon(Icons.search),
           suffixIcon:
               _isSearching
@@ -58,7 +59,7 @@ class _MusicSearchBarState extends ConsumerState<MusicSearchBar> {
                     icon: const Icon(Icons.clear),
                     onPressed: () {
                       _searchController.clear();
-                      ref.read(searchResultsProvider.notifier).search('');
+                      ref.read(searchResultsProvider.notifier).loadVideo('');
                       setState(() => _isSearching = false);
                     },
                   )

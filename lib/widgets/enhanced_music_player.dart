@@ -211,7 +211,11 @@ class _EnhancedMusicPlayerState extends ConsumerState<EnhancedMusicPlayer> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.skip_previous),
-                          onPressed: () => _audioPlayer.seekToPrevious(),
+                          onPressed:
+                              () =>
+                                  ref
+                                      .read(currentTrackProvider.notifier)
+                                      .playPrevious(),
                         ),
                         IconButton(
                           icon: Icon(
@@ -227,7 +231,11 @@ class _EnhancedMusicPlayerState extends ConsumerState<EnhancedMusicPlayer> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.skip_next),
-                          onPressed: () => _audioPlayer.seekToNext(),
+                          onPressed:
+                              () =>
+                                  ref
+                                      .read(currentTrackProvider.notifier)
+                                      .playNext(),
                         ),
                         Consumer(
                           builder: (context, ref, _) {
@@ -285,25 +293,52 @@ class _EnhancedMusicPlayerState extends ConsumerState<EnhancedMusicPlayer> {
                                     focusNode: _sliderFocusNode,
                                     onKey: (event) {
                                       if (event is RawKeyDownEvent) {
-                                        if (event.logicalKey == LogicalKeyboardKey.controlLeft ||
-                                            event.logicalKey == LogicalKeyboardKey.controlRight) {
-                                          setState(() => _isControlPressed = true);
+                                        if (event.logicalKey ==
+                                                LogicalKeyboardKey
+                                                    .controlLeft ||
+                                            event.logicalKey ==
+                                                LogicalKeyboardKey
+                                                    .controlRight) {
+                                          setState(
+                                            () => _isControlPressed = true,
+                                          );
                                         } else if (_isControlPressed &&
-                                            event.logicalKey == LogicalKeyboardKey.keyV) {
-                                          Clipboard.getData('text/plain').then((value) {
+                                            event.logicalKey ==
+                                                LogicalKeyboardKey.keyV) {
+                                          Clipboard.getData('text/plain').then((
+                                            value,
+                                          ) {
                                             if (value != null) {
-                                              final pastedValue = double.tryParse(value.text ?? '');
-                                              if (pastedValue != null && pastedValue >= 0 && pastedValue <= 1) {
-                                                ref.read(preferencesProvider.notifier).setVolume(pastedValue);
-                                                _audioPlayer.setVolume(pastedValue);
+                                              final pastedValue =
+                                                  double.tryParse(
+                                                    value.text ?? '',
+                                                  );
+                                              if (pastedValue != null &&
+                                                  pastedValue >= 0 &&
+                                                  pastedValue <= 1) {
+                                                ref
+                                                    .read(
+                                                      preferencesProvider
+                                                          .notifier,
+                                                    )
+                                                    .setVolume(pastedValue);
+                                                _audioPlayer.setVolume(
+                                                  pastedValue,
+                                                );
                                               }
                                             }
                                           });
                                         }
                                       } else if (event is RawKeyUpEvent &&
-                                          (event.logicalKey == LogicalKeyboardKey.controlLeft ||
-                                           event.logicalKey == LogicalKeyboardKey.controlRight)) {
-                                        setState(() => _isControlPressed = false);
+                                          (event.logicalKey ==
+                                                  LogicalKeyboardKey
+                                                      .controlLeft ||
+                                              event.logicalKey ==
+                                                  LogicalKeyboardKey
+                                                      .controlRight)) {
+                                        setState(
+                                          () => _isControlPressed = false,
+                                        );
                                       }
                                     },
                                     child: Slider(

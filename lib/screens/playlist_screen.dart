@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/playlist_provider.dart';
 import '../providers/music_provider.dart';
 import '../widgets/playlist_dialog.dart';
+import '../widgets/youtube_playlist_dialog.dart';
 import 'playlist_details_screen.dart';
 
 class PlaylistScreen extends ConsumerWidget {
@@ -14,20 +15,7 @@ class PlaylistScreen extends ConsumerWidget {
     final currentTrack = ref.watch(currentTrackProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Playlists'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => const PlaylistDialog(),
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Playlists')),
       body:
           playlists.isEmpty
               ? Center(
@@ -37,17 +25,6 @@ class PlaylistScreen extends ConsumerWidget {
                     const Icon(Icons.queue_music, size: 64, color: Colors.grey),
                     const SizedBox(height: 16),
                     const Text('No playlists yet'),
-                    const SizedBox(height: 8),
-                    FilledButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => const PlaylistDialog(),
-                        );
-                      },
-                      icon: const Icon(Icons.add),
-                      label: const Text('Create Playlist'),
-                    ),
                   ],
                 ),
               )
@@ -59,7 +36,7 @@ class PlaylistScreen extends ConsumerWidget {
                     leading: const Icon(Icons.queue_music),
                     title: Text(playlist.name),
                     subtitle: Text(
-                      '${playlist.trackIds.length} tracks${playlist.description.isNotEmpty ? ' • ${playlist.description}' : ''}',
+                      '${playlist.tracks.length} tracks${playlist.description.isNotEmpty ? ' • ${playlist.description}' : ''}',
                     ),
                     trailing: PopupMenuButton(
                       itemBuilder:
@@ -86,7 +63,7 @@ class PlaylistScreen extends ConsumerWidget {
                                       .read(playlistsProvider.notifier)
                                       .addTrackToPlaylist(
                                         playlist.id,
-                                        currentTrack.id,
+                                        currentTrack,
                                       );
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -110,15 +87,24 @@ class PlaylistScreen extends ConsumerWidget {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => PlaylistDetailsScreen(
-                            playlist: playlist,
-                          ),
+                          builder:
+                              (context) =>
+                                  PlaylistDetailsScreen(playlist: playlist),
                         ),
                       );
                     },
                   );
                 },
               ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) => const PlaylistDialog(),
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }

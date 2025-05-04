@@ -74,7 +74,7 @@ class PlaylistSection extends ConsumerWidget {
                           leading: const Icon(Icons.queue_music),
                           title: Text(playlist.name),
                           subtitle: Text(
-                            '${playlist.trackIds.length} tracks${playlist.description.isNotEmpty ? ' • ${playlist.description}' : ''}',
+                            '${playlist.tracks.length} tracks${playlist.description.isNotEmpty ? ' • ${playlist.description}' : ''}',
                           ),
                           trailing: IconButton(
                             icon: const Icon(Icons.more_vert),

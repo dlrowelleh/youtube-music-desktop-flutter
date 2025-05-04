@@ -12,18 +12,26 @@ class SearchSection extends ConsumerStatefulWidget {
 }
 
 class _SearchSectionState extends ConsumerState<SearchSection> {
+  bool _cleared = false;
+
   @override
   void initState() {
     super.initState();
     Future(() {
       if (mounted) {
         ref.read(searchResultsProvider.notifier).state = [];
+        setState(() {
+          _cleared = true;
+        });
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_cleared) {
+      return const SizedBox.shrink();
+    }
     return const Column(
       children: [
         Padding(padding: EdgeInsets.all(16.0), child: MusicSearchBar()),
