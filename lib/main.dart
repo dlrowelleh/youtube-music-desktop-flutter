@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_screen.dart';
 import 'services/initialization_service.dart';
 
@@ -35,5 +34,5 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.dark,
       home: const HomeScreen(),
     );
-  }  
+  }
 }

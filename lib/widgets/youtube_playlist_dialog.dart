@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../providers/playlist_provider.dart';
-import '../models/playlist.dart';
 
 class YoutubePlaylistDialog extends ConsumerStatefulWidget {
   const YoutubePlaylistDialog({super.key});

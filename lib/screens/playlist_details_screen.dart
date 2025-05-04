@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt;
 import '../models/playlist.dart';
 import '../models/music_track.dart';
 import '../providers/playlist_provider.dart';
 import '../widgets/playlist_dialog.dart';
 import '../widgets/enhanced_music_player.dart';
 import '../providers/music_provider.dart';
+import 'package:just_audio/just_audio.dart';
 
 class PlaylistDetailsScreen extends ConsumerStatefulWidget {
   final Playlist playlist;
@@ -172,9 +174,118 @@ class _PlaylistDetailsScreenState extends ConsumerState<PlaylistDetailsScreen> {
                                 },
                               ),
                               onTap: () async {
-                                await ref
-                                    .read(currentTrackProvider.notifier)
-                                    .playTrack(track);
+                                print(
+                                  '트랙 클릭됨: 제목=${track.title}, 아티스트=${track.artist}, id=${track.id}',
+                                );
+                                final musicService = ref.read(
+                                  musicServiceProvider,
+                                );
+                                final audioPlayer = musicService.audioPlayer;
+                                final currentSource = audioPlayer.audioSource;
+                                if (currentSource is ConcatenatingAudioSource) {
+                                  final index = currentSource.children
+                                      .indexWhere(
+                                        (source) =>
+                                            source is UriAudioSource &&
+                                            source.tag is MusicTrack &&
+                                            (source.tag as MusicTrack).id ==
+                                                track.id,
+                                      );
+                                  if (index != -1) {
+                                    print(
+                                      'Playing track: ${track.title} by ${track.artist} (id: ${track.id})',
+                                    );
+                                    await audioPlayer.seek(
+                                      Duration.zero,
+                                      index: index,
+                                    );
+                                    await audioPlayer.play();
+                                    return;
+                                  }
+                                }
+                                // 1. Play only the selected track immediately
+                                try {
+                                  final manifest = await musicService
+                                      .getManifest(track.id);
+                                  if (manifest.audioOnly == null ||
+                                      manifest.audioOnly.isEmpty) {
+                                    throw Exception(
+                                      'No audio streams available for this track.',
+                                    );
+                                  }
+                                  final audioStream =
+                                      manifest.audioOnly.withHighestBitrate();
+                                  if (audioStream == null) {
+                                    throw Exception(
+                                      'No suitable audio stream found for this track.',
+                                    );
+                                  }
+                                  final selectedSource = AudioSource.uri(
+                                    Uri.parse(audioStream.url.toString()),
+                                    tag: track,
+                                  );
+                                  await audioPlayer.setAudioSource(
+                                    ConcatenatingAudioSource(
+                                      children: [selectedSource],
+                                    ),
+                                    initialIndex: 0,
+                                  );
+                                  await audioPlayer.play();
+                                  await ref
+                                      .read(currentTrackProvider.notifier)
+                                      .playTrack(track);
+                                } catch (e) {
+                                  print(
+                                    'Failed to load selected track ${track.title}: $e',
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Failed to play track: ${track.title}',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                // 2. Load the rest of the tracks asynchronously and append them
+                                Future(() async {
+                                  for (final t in tracks) {
+                                    if (t.id == track.id) continue;
+                                    try {
+                                      final m = await musicService.getManifest(
+                                        t.id,
+                                      );
+                                      if (m.audioOnly == null ||
+                                          m.audioOnly.isEmpty) {
+                                        throw Exception(
+                                          'No audio streams available for this track.',
+                                        );
+                                      }
+                                      final s =
+                                          m.audioOnly.withHighestBitrate();
+                                      if (s == null) {
+                                        throw Exception(
+                                          'No suitable audio stream found for this track.',
+                                        );
+                                      }
+                                      final audioSource = AudioSource.uri(
+                                        Uri.parse(s.url.toString()),
+                                        tag: t,
+                                      );
+                                      if (audioPlayer.audioSource
+                                          is ConcatenatingAudioSource) {
+                                        final concat =
+                                            audioPlayer.audioSource
+                                                as ConcatenatingAudioSource;
+                                        await concat.add(audioSource);
+                                      }
+                                    } catch (e) {
+                                      print(
+                                        'Failed to load track ${t.title}: $e',
+                                      );
+                                    }
+                                  }
+                                });
                               },
                             );
                           },

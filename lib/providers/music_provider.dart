@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../models/music_track.dart';
 import '../services/music_service.dart';
 import '../models/preferences.dart';
@@ -38,7 +39,7 @@ class PlaylistTracksNotifier extends StateNotifier<List<MusicTrack>> {
     final List<AudioSource> audioSources = [];
     for (final track in tracks) {
       final manifest = await _musicService.getManifest(track.id);
-      final audioStream = manifest.audioOnly.first;
+      final audioStream = manifest.audioOnly.withHighestBitrate();
       audioSources.add(
         AudioSource.uri(Uri.parse(audioStream.url.toString()), tag: track),
       );
@@ -49,6 +50,29 @@ class PlaylistTracksNotifier extends StateNotifier<List<MusicTrack>> {
     await _musicService.audioPlayer.setShuffleModeEnabled(true);
     await _musicService.audioPlayer.shuffle();
     await _musicService.audioPlayer.seek(Duration.zero, index: 0);
+    await _musicService.audioPlayer.play();
+  }
+
+  Future<void> playPlaylistTracks(
+    List<MusicTrack> tracks,
+    int startIndex,
+  ) async {
+    if (tracks.isEmpty) return;
+    state = tracks;
+    // Fetch actual stream URLs for each track
+    final List<AudioSource> audioSources = [];
+    for (final track in tracks) {
+      final manifest = await _musicService.getManifest(track.id);
+      final audioStream = manifest.audioOnly.withHighestBitrate();
+      audioSources.add(
+        AudioSource.uri(Uri.parse(audioStream.url.toString()), tag: track),
+      );
+    }
+    await _musicService.audioPlayer.setAudioSource(
+      ConcatenatingAudioSource(children: audioSources),
+    );
+    // Start playing from the selected track
+    await _musicService.audioPlayer.seek(Duration.zero, index: startIndex);
     await _musicService.audioPlayer.play();
   }
 }

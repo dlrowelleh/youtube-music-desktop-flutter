@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/playlist_provider.dart';
 import '../providers/music_provider.dart';
 import '../widgets/playlist_dialog.dart';
-import '../widgets/youtube_playlist_dialog.dart';
 import 'playlist_details_screen.dart';
 
 class PlaylistScreen extends ConsumerWidget {
