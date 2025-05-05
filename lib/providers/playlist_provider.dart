@@ -107,15 +107,32 @@ class PlaylistsNotifier extends StateNotifier<List<Playlist>> {
 
     final youtube = yt.YoutubeExplode();
     try {
+      // 플레이리스트 비디오 가져오기
       final videos =
           await youtube.playlists
               .getVideos(playlist.youtubePlaylistId!)
               .toList();
-      // TODO: You need to convert videoIds to MusicTrack objects before updating the playlist
-      // For now, just print the video IDs
-      final videoIds = videos.map((video) => video.id.value).toList();
-      print('Fetched video IDs: $videoIds');
-      // updatePlaylist(playlistId, tracks: ...); // Implement conversion to MusicTrack
+
+      // 비디오를 MusicTrack 객체로 변환
+      final tracks =
+          videos
+              .map(
+                (video) => MusicTrack(
+                  id: video.id.value,
+                  title: video.title,
+                  artist: video.author,
+                  thumbnailUrl: video.thumbnails.highResUrl,
+                  duration: video.duration ?? Duration.zero,
+                  url:
+                      'https://www.youtube.com/watch?v=${video.id.value}', // URL 필수 매개변수 추가
+                ),
+              )
+              .toList();
+
+      print('Fetched video IDs: ${tracks.map((track) => track.id).toList()}');
+
+      // 플레이리스트 업데이트
+      updatePlaylist(playlistId, tracks: tracks);
     } catch (e) {
       print('Failed to sync YouTube playlist: $e');
       rethrow;

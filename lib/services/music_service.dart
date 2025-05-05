@@ -39,47 +39,58 @@ class MusicService {
   }
 
   Future<void> playTrack(MusicTrack track) async {
-    try {
-      final currentSource = audioPlayer.audioSource;
-      if (currentSource is ConcatenatingAudioSource) {
-        final index = currentSource.children.indexWhere(
-          (source) =>
-              source is UriAudioSource &&
-              source.tag is MusicTrack &&
-              (source.tag as MusicTrack).id == track.id,
-        );
-        if (index != -1) {
-          await audioPlayer.seek(Duration.zero, index: index);
-          await audioPlayer.play();
-          return;
-        }
-      }
-      // 기존 플레이리스트가 없거나 트랙이 플레이리스트에 없으면 새로 생성
-      // 단일 트랙만 재생할 경우에만 ConcatenatingAudioSource를 새로 만듦
-      if (currentSource is! ConcatenatingAudioSource ||
-          !(currentSource.children.any(
+    int retryCount = 0;
+    const int maxRetries = 3;
+    while (retryCount < maxRetries) {
+      try {
+        final currentSource = audioPlayer.audioSource;
+        if (currentSource is ConcatenatingAudioSource) {
+          final index = currentSource.children.indexWhere(
             (source) =>
                 source is UriAudioSource &&
                 source.tag is MusicTrack &&
                 (source.tag as MusicTrack).id == track.id,
-          ))) {
-        final manifest = await getManifest(track.id);
-        final audioStream = manifest.audioOnly.withHighestBitrate();
-        await Future(() async {
-          final audioSource = ConcatenatingAudioSource(
-            children: [
-              AudioSource.uri(
-                Uri.parse(audioStream.url.toString()),
-                tag: track,
-              ),
-            ],
           );
-          await audioPlayer.setAudioSource(audioSource);
-          await audioPlayer.play();
-        });
+          if (index != -1) {
+            await audioPlayer.seek(Duration.zero, index: index);
+            await audioPlayer.play();
+            return;
+          }
+        }
+        // 기존 플레이리스트가 없거나 트랙이 플레이리스트에 없으면 새로 생성
+        // 단일 트랙만 재생할 경우에만 ConcatenatingAudioSource를 새로 만듦
+        if (currentSource is! ConcatenatingAudioSource ||
+            !(currentSource.children.any(
+              (source) =>
+                  source is UriAudioSource &&
+                  source.tag is MusicTrack &&
+                  (source.tag as MusicTrack).id == track.id,
+            ))) {
+          final manifest = await getManifest(track.id);
+          final audioStream = manifest.audioOnly.withHighestBitrate();
+          await Future(() async {
+            final audioSource = ConcatenatingAudioSource(
+              children: [
+                AudioSource.uri(
+                  Uri.parse(audioStream.url.toString()),
+                  tag: track,
+                ),
+              ],
+            );
+            await audioPlayer.setAudioSource(audioSource);
+            await audioPlayer.play();
+          });
+        }
+        return;
+      } catch (e) {
+        print('Error playing music (attempt ${retryCount + 1}): $e');
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          print('Failed to play track after $maxRetries attempts.');
+        } else {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
       }
-    } catch (e) {
-      print('Error playing music: $e');
     }
   }
 

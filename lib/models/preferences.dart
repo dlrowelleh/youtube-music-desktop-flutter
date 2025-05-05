@@ -70,4 +70,10 @@ class PreferencesService {
       return const Preferences();
     }
   }
+
+  Future<void> setLastPlayedTrack(String trackId) async {
+    final preferences = loadPreferences();
+    final updatedPreferences = preferences.copyWith(lastPlayedTrackId: trackId);
+    await savePreferences(updatedPreferences);
+  }
 }

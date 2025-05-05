@@ -20,6 +20,25 @@ class PlaylistDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _PlaylistDetailsScreenState extends ConsumerState<PlaylistDetailsScreen> {
+  bool _disposed = false;
+  @override
+  void dispose() {
+    _disposed = true;
+    try {
+      // dispose 전에 안전하게 오디오 플레이어 정지
+      // ref가 이미 dispose된 경우를 대비하여 try-catch로 감싸기
+      if (!_disposed) {
+        final musicService = ref.read(musicServiceProvider);
+        // 비동기 작업이지만 dispose에서는 await를 사용할 수 없으므로
+        // 오류가 발생해도 무시하고 진행
+        musicService.audioPlayer.pause();
+      }
+    } catch (e) {
+      print('Dispose 중 오디오 플레이어 정지 오류: $e');
+    }
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final tracks = widget.playlist.tracks;
@@ -111,15 +130,31 @@ class _PlaylistDetailsScreenState extends ConsumerState<PlaylistDetailsScreen> {
                       onPressed:
                           tracks.isEmpty
                               ? null
-                              : () {
-                                final shuffled = List<MusicTrack>.from(tracks)
-                                  ..shuffle();
-                                // TODO: Pass shuffled list to player
-                                // 기존의 EnhancedMusicPlayer를 사용하여 셔플 재생을 트리거
-                                // 예시: 전역 Provider 또는 Service를 통해 트랙 리스트와 재생 인덱스를 설정
-                                ref
-                                    .read(playlistTracksProvider.notifier)
-                                    .playShuffledTracks(shuffled);
+                              : () async {
+                                // 셔플 로직은 playShuffledTracks 내부에서 처리하도록 수정
+                                // 원본 트랙 리스트를 전달하고 내부에서 피셔-예이츠 알고리즘으로 셔플
+                                try {
+                                  // 셔플 재생 후 반환된 트랙을 currentTrackProvider에 설정
+                                  final selectedTrack = await ref
+                                      .read(playlistTracksProvider.notifier)
+                                      .playShuffledTracks(
+                                        List<MusicTrack>.from(tracks),
+                                      );
+
+                                  // 선택된 트랙이 있으면 currentTrackProvider 업데이트
+                                  if (selectedTrack != null) {
+                                    ref
+                                        .read(currentTrackProvider.notifier)
+                                        .state = selectedTrack;
+                                  }
+                                } catch (e) {
+                                  print('Error in shuffle button: $e');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('셔플 재생 중 오류가 발생했습니다: $e'),
+                                    ),
+                                  );
+                                }
                               },
                     ),
                   ],
@@ -250,6 +285,7 @@ class _PlaylistDetailsScreenState extends ConsumerState<PlaylistDetailsScreen> {
                                 // 2. Load the rest of the tracks asynchronously and append them
                                 Future(() async {
                                   for (final t in tracks) {
+                                    if (_disposed) return;
                                     if (t.id == track.id) continue;
                                     try {
                                       final m = await musicService.getManifest(
