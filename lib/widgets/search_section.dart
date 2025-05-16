@@ -17,12 +17,14 @@ class _SearchSectionState extends ConsumerState<SearchSection> {
   @override
   void initState() {
     super.initState();
-    Future(() {
+    Future(() async {
       if (mounted) {
-        ref.read(searchResultsProvider.notifier).state = [];
-        setState(() {
-          _cleared = true;
-        });
+        await ref.read(searchResultsProvider.notifier).loadVideo('');
+        if (mounted) {
+          setState(() {
+            _cleared = true;
+          });
+        }
       }
     });
   }

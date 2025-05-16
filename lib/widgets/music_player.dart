@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/music_track.dart';
 import '../providers/music_provider.dart';
 
 class MusicPlayer extends ConsumerWidget {
@@ -18,7 +17,7 @@ class MusicPlayer extends ConsumerWidget {
         color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: const Color.fromRGBO(0, 0, 0, 0.2),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),

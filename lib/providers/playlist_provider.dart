@@ -6,6 +6,7 @@ import '../models/playlist.dart';
 import 'preferences_provider.dart';
 import '../models/music_track.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter/foundation.dart';
 
 final playlistsProvider =
     StateNotifierProvider<PlaylistsNotifier, List<Playlist>>(
@@ -129,12 +130,14 @@ class PlaylistsNotifier extends StateNotifier<List<Playlist>> {
               )
               .toList();
 
-      print('Fetched video IDs: ${tracks.map((track) => track.id).toList()}');
+      debugPrint(
+        'Fetched video IDs: ${tracks.map((track) => track.id).toList()}',
+      );
 
       // 플레이리스트 업데이트
       updatePlaylist(playlistId, tracks: tracks);
     } catch (e) {
-      print('Failed to sync YouTube playlist: $e');
+      debugPrint('Failed to sync YouTube playlist: $e');
       rethrow;
     } finally {
       youtube.close();
@@ -157,7 +160,3 @@ class PlaylistsNotifier extends StateNotifier<List<Playlist>> {
     _savePlaylists();
   }
 }
-
-// Remove duplicate import '../models/music_track.dart';
-// Remove duplicate import 'package:uuid/uuid.dart';
-// Ensure file ends with a single closing bracket for the class.

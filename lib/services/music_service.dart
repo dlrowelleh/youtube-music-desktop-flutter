@@ -1,35 +1,31 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
-import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart' hide Playlist;
-import 'package:media_kit/media_kit.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt;
+import 'package:media_kit/media_kit.dart' as media_kit;
 import '../models/music_track.dart';
 
 class MusicService {
   String? _selectedDownloadPath;
-  final _youtube = YoutubeExplode();
-  final player = Player();
-
-  MusicService() {
-    // MediaKit.ensureInitialized(); // main.dart에서 호출하므로 제거
-  }
-
-  Future<StreamManifest> getManifest(String videoId) async {
+  Future<yt.StreamManifest> getManifest(String videoId) async {
     try {
       final manifest = await _youtube.videos.streamsClient.getManifest(videoId);
       if (manifest.audioOnly.isEmpty) {
         throw Exception('No audio streams available for this video.');
       }
       return manifest;
-    } on VideoUnavailableException catch (e) {
-      print('VideoUnavailableException for videoId $videoId: $e');
+    } on yt.VideoUnavailableException catch (e) {
+      debugPrint('VideoUnavailableException for videoId $videoId: $e');
       throw Exception('Video is unavailable: $videoId');
     } catch (e) {
-      print('Error fetching manifest for videoId $videoId: $e');
+      debugPrint('Error fetching manifest for videoId $videoId: $e');
       rethrow;
     }
   }
+
+  final _youtube = yt.YoutubeExplode();
+  final audioPlayer = media_kit.Player();
 
   Future<List<MusicTrack>> searchMusic(String query) async {
     try {
@@ -42,138 +38,63 @@ class MusicService {
 
       return tracks;
     } catch (e) {
-      print('Error searching videos: $e');
+      debugPrint('Error searching videos: $e');
       return [];
     }
   }
 
-  Future<void> playTrack(
-    MusicTrack track, {
-    List<MusicTrack>? playlist,
-    int initialIndex = 0,
-  }) async {
+  Future<void> playTrack(MusicTrack track) async {
     int retryCount = 0;
     const int maxRetries = 3;
     while (retryCount < maxRetries) {
       try {
-        final manifest = await getManifest(track.id);
-        final audioStream = manifest.audioOnly.withHighestBitrate();
-        final media = Media(
-          audioStream.url.toString(),
-          extras: {'track': track},
+        final currentPlayerPlaylist = audioPlayer.state.playlist;
+        final existingIndex = currentPlayerPlaylist.medias.indexWhere(
+          (media) => media.extras?['music_track']?.id == track.id,
         );
 
-        final currentPlaylistState = player.state.playlist;
-        final currentMedia =
-            currentPlaylistState.medias.isNotEmpty &&
-                    currentPlaylistState.index >= 0
-                ? currentPlaylistState.medias[currentPlaylistState.index]
-                : null;
-
-        bool isSameTrackPlaying =
-            currentMedia?.extras?['track']?.id == track.id;
-
-        if (isSameTrackPlaying) {
-          await player.play();
+        if (existingIndex != -1) {
+          await audioPlayer.jump(existingIndex);
+          await audioPlayer.play();
           return;
         }
 
-        if (playlist != null && playlist.isNotEmpty) {
-          List<Media> mediaPlaylist = [];
-          for (var item in playlist) {
-            try {
-              final itemManifest = await getManifest(item.id);
-              final itemAudioStream =
-                  itemManifest.audioOnly.withHighestBitrate();
-              mediaPlaylist.add(
-                Media(itemAudioStream.url.toString(), extras: {'track': item}),
-              );
-            } catch (e) {
-              print("Error getting manifest for ${item.id} in playlist: $e");
-            }
-          }
+        final manifest = await getManifest(track.id);
+        final audioStream = manifest.audioOnly.withHighestBitrate();
 
-          if (mediaPlaylist.isNotEmpty) {
-            final int trackIndexInPlaylist = mediaPlaylist.indexWhere(
-              (m) => m.extras?['track']?.id == track.id,
-            );
-            await player.open(
-              Playlist(
-                mediaPlaylist,
-                index: trackIndexInPlaylist >= 0 ? trackIndexInPlaylist : 0,
-              ),
-            );
-            await player.play();
-          } else {
-            print("플레이리스트의 모든 트랙을 로드할 수 없어 재생을 시작할 수 없습니다.");
-            return;
-          }
-        } else {
-          await player.open(Playlist([media]));
-          await player.play();
-        }
+        final media = media_kit.Media(
+          audioStream.url.toString(),
+          extras: {'music_track': track},
+        );
+        await audioPlayer.open(media_kit.Playlist([media]));
+        await audioPlayer.play();
         return;
       } catch (e) {
-        print('Error playing music (attempt ${retryCount + 1}): $e');
+        debugPrint('Error playing music (attempt ${retryCount + 1}): $e');
         retryCount++;
         if (retryCount >= maxRetries) {
-          print('Failed to play track after $maxRetries attempts.');
-          return;
+          debugPrint('Failed to play track after $maxRetries attempts.');
+        } else {
+          await Future.delayed(const Duration(milliseconds: 500));
         }
-        await Future.delayed(const Duration(milliseconds: 500));
       }
     }
   }
 
-  Future<void> playPlaylist(List<MusicTrack> tracks, int initialIndex) async {
-    if (tracks.isEmpty) return;
-    await playTrack(
-      tracks[initialIndex],
-      playlist: tracks,
-      initialIndex: initialIndex,
-    );
-  }
-
   Future<void> pause() async {
-    await player.pause();
+    await audioPlayer.pause();
   }
 
   Future<void> resume() async {
-    await player.play();
+    await audioPlayer.play();
   }
 
   Future<void> stop() async {
-    await player.stop();
-  }
-
-  Future<void> next() async {
-    await player.next();
-  }
-
-  Future<void> previous() async {
-    await player.previous();
-  }
-
-  Future<void> seek(Duration position) async {
-    await player.seek(position);
-  }
-
-  Future<void> setVolume(double volume) async {
-    await player.setVolume(volume * 100);
-  }
-
-  Future<void> setShuffle(bool shuffle) async {
-    await player.setShuffle(shuffle);
-  }
-
-  Future<void> setLoopMode(bool repeatEnabled) async {
-    await player.setPlaylistMode(
-      repeatEnabled ? PlaylistMode.loop : PlaylistMode.none,
-    );
+    await audioPlayer.stop();
   }
 
   Future<void> dispose() async {
-    await player.dispose();
+    await audioPlayer.dispose();
     _youtube.close();
   }
 
@@ -183,7 +104,8 @@ class MusicService {
   ) async {
     try {
       final manifest = await getManifest(track.id);
-      final audioStreamInfo = manifest.audioOnly.withHighestBitrate();
+      final yt.AudioOnlyStreamInfo audioStreamInfo =
+          manifest.audioOnly.withHighestBitrate();
 
       final sanitizedTitle = track.title.replaceAll(
         RegExp(r'[\/:*?"<>|]'),
@@ -192,7 +114,7 @@ class MusicService {
       final filePath = '$downloadPath/$sanitizedTitle.mp3';
 
       if (await File(filePath).exists()) {
-        print('File already exists: $filePath');
+        debugPrint('File already exists: $filePath');
         return filePath;
       }
 
@@ -204,10 +126,10 @@ class MusicService {
       await stream.pipe(fileStream);
       await fileStream.close();
 
-      print('Download complete: $filePath');
+      debugPrint('Download complete: $filePath');
       return filePath;
     } catch (e) {
-      print('Error downloading track ${track.title}: $e');
+      debugPrint('Error downloading track ${track.title}: $e');
       final sanitizedTitle = track.title.replaceAll(
         RegExp(r'[\/:*?"<>|]'),
         '_',
@@ -217,14 +139,14 @@ class MusicService {
       if (await file.exists()) {
         try {
           await file.delete();
-          print('Deleted partially downloaded file: $filePath');
+          debugPrint('Deleted partially downloaded file: $filePath');
         } catch (deleteError) {
-          print(
+          debugPrint(
             'Error deleting partially downloaded file $filePath: $deleteError',
           );
         }
       }
-      return '';
+      rethrow;
     }
   }
 
@@ -235,22 +157,23 @@ class MusicService {
         dialogTitle: '다운로드할 폴더를 선택하세요',
       );
       if (downloadDirectory == null) {
-        print('폴더 선택이 취소되었습니다.');
-        return;
+        debugPrint('폴더 선택이 취소되었습니다.');
+        throw Exception('Download folder not selected.');
       }
       _selectedDownloadPath = downloadDirectory;
     }
-    _downloadSingleTrack(track, downloadDirectory)
-        .then((filePath) {
-          if (filePath.isNotEmpty) {
-            print('${track.title} downloaded to $filePath');
-          } else {
-            print('Failed to download ${track.title}');
-          }
-        })
-        .catchError((e) {
-          print('Error in downloadTrack for ${track.title}: $e');
-        });
+
+    try {
+      final filePath = await _downloadSingleTrack(track, downloadDirectory);
+      if (filePath.isNotEmpty) {
+        debugPrint('${track.title} downloaded to $filePath');
+      } else {
+        debugPrint('Failed to download ${track.title}');
+      }
+    } catch (e) {
+      debugPrint('Error in downloadTrack for ${track.title}: $e');
+      rethrow;
+    }
   }
 
   Future<void> downloadMultipleTracks(List<MusicTrack> tracks) async {
@@ -260,17 +183,34 @@ class MusicService {
         dialogTitle: '다운로드할 폴더를 선택하세요',
       );
       if (downloadDirectory == null) {
-        print('폴더 선택이 취소되었습니다. 여러 곡 다운로드를 취소합니다.');
-        return;
+        debugPrint('폴더 선택이 취소되었습니다. 여러 곡 다운로드를 취소합니다.');
+        throw Exception('Download folder not selected.');
       }
       _selectedDownloadPath = downloadDirectory;
     }
 
-    List<Future<String>> downloadFutures = [];
-    for (var track in tracks) {
-      downloadFutures.add(_downloadSingleTrack(track, downloadDirectory));
-    }
+    debugPrint('${tracks.length}개 트랙 다운로드를 시작합니다. (백그라운드 실행)');
 
-    print('${tracks.length}개 트랙 다운로드를 시작합니다. (백그라운드 실행)');
+    int successCount = 0;
+    int failCount = 0;
+
+    List<Future<void>> downloadFutures =
+        tracks.map((track) async {
+          try {
+            await _downloadSingleTrack(track, downloadDirectory!);
+            successCount++;
+          } catch (e) {
+            debugPrint('Failed to download ${track.title}: $e');
+            failCount++;
+          }
+        }).toList();
+
+    try {
+      await Future.wait(downloadFutures);
+      debugPrint('모든 트랙 다운로드 시도 완료. 성공: $successCount, 실패: $failCount');
+      if (failCount > 0) {}
+    } catch (e) {
+      debugPrint('여러 트랙 다운로드 중 오류 발생: $e');
+    }
   }
 }

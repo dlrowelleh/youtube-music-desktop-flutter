@@ -171,10 +171,10 @@ class _PlaylistDialogState extends ConsumerState<PlaylistDialog> {
 
                 youtube.close();
                 if (!mounted) return;
-                Navigator.of(context).pop();
+                Navigator.of(this.context).pop();
               } catch (e) {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(this.context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(this.context).showSnackBar(
                   const SnackBar(
                     content: Text(
                       'Failed to import playlist. Please check the URL and try again.',

@@ -48,11 +48,8 @@ class _YoutubePlaylistDialogState extends ConsumerState<YoutubePlaylistDialog> {
             youtubePlaylistId: playlist.id.value,
           );
 
-      final createdPlaylist = ref.read(playlistsProvider).last;
-      for (final video in videos) {
+      for (final _ in videos) {
         ref.read(playlistsProvider.notifier);
-        // Replace .addTrackToPlaylist(createdPlaylist.id, video.id.value);
-        // with .addTrackToPlaylist(createdPlaylist.id, MusicTrack.fromVideoInfo(video));
       }
 
       yt.close();

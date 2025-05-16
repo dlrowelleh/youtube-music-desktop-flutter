@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt;
-import 'package:media_kit/media_kit.dart' hide Playlist;
 import '../models/playlist.dart';
 import '../models/music_track.dart';
 import '../providers/playlist_provider.dart';
@@ -20,21 +18,19 @@ class PlaylistDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _PlaylistDetailsScreenState extends ConsumerState<PlaylistDetailsScreen> {
-  late Player _player;
-
-  @override
-  void initState() {
-    super.initState();
-    _player = ref.read(musicServiceProvider).player;
-  }
-
+  bool _disposed = false;
   @override
   void dispose() {
-    try {
-      _player.pause();
-    } catch (e) {
-      print('PlaylistDetailsScreen dispose 중 플레이어 정지 오류: $e');
-    }
+    _disposed = true;
+    // try {
+    //   // 화면이 dispose될 때 현재 음악을 정지할 필요는 없을 수 있습니다.
+    //   // 사용자가 다른 화면으로 이동해도 음악은 계속 재생될 수 있도록 합니다.
+    //   // 만약 플레이리스트 상세 화면을 벗어날 때 항상 음악을 정지시키고 싶다면 이 코드를 사용합니다.
+    //   // final musicService = ref.read(musicServiceProvider);
+    //   // musicService.audioPlayer.pause();
+    // } catch (e) {
+    //   debugPrint('Dispose 중 오디오 플레이어 정지 오류: $e');
+    // }
     super.dispose();
   }
 
@@ -85,7 +81,50 @@ class _PlaylistDetailsScreenState extends ConsumerState<PlaylistDetailsScreen> {
                           ),
                         ),
                       );
-                      await musicService.downloadMultipleTracks(tracks);
+                      int successCount = 0;
+                      int failCount = 0;
+                      for (final track in tracks) {
+                        try {
+                          await musicService.downloadTrack(track);
+                          successCount++;
+                          if (!mounted) return;
+                          final scaffoldMessenger = ScaffoldMessenger.of(
+                            this.context,
+                          );
+                          scaffoldMessenger.hideCurrentSnackBar();
+                          scaffoldMessenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Downloaded: ${track.title}'),
+                            ),
+                          );
+                        } catch (e) {
+                          failCount++;
+                          if (!mounted) return;
+                          final scaffoldMessenger = ScaffoldMessenger.of(
+                            this.context,
+                          );
+                          scaffoldMessenger.hideCurrentSnackBar();
+                          scaffoldMessenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Failed to download ${track.title}: $e',
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                      if (!mounted) return;
+                      final scaffoldMessenger = ScaffoldMessenger.of(
+                        this.context,
+                      );
+                      scaffoldMessenger.hideCurrentSnackBar();
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Download complete. Success: $successCount, Failed: $failCount',
+                          ),
+                        ),
+                      );
                     },
           ),
           IconButton(
@@ -109,8 +148,10 @@ class _PlaylistDetailsScreenState extends ConsumerState<PlaylistDetailsScreen> {
                             ref
                                 .read(playlistsProvider.notifier)
                                 .deletePlaylist(widget.playlist.id);
-                            Navigator.of(context).pop();
-                            Navigator.of(context).pop();
+                            Navigator.of(context).pop(); // Close dialog
+                            Navigator.of(
+                              context,
+                            ).pop(); // Go back from playlist details
                           },
                           child: const Text('Delete'),
                         ),
@@ -151,23 +192,52 @@ class _PlaylistDetailsScreenState extends ConsumerState<PlaylistDetailsScreen> {
                               ? null
                               : () async {
                                 try {
-                                  await ref
-                                      .read(playlistTracksProvider.notifier)
-                                      .playShuffledTracks(
-                                        List<MusicTrack>.from(tracks),
-                                      );
-                                } catch (e) {
-                                  print('Error in shuffle button: $e');
-                                  if (mounted) {
+                                  final currentTrackNotifier = ref.read(
+                                    currentTrackProvider.notifier,
+                                  );
+                                  final playlistTracksNotifier = ref.read(
+                                    playlistTracksProvider.notifier,
+                                  );
+
+                                  // 셔플 재생 시작 및 첫 트랙 가져오기
+                                  final firstShuffledTrack =
+                                      await playlistTracksNotifier
+                                          .playShuffledTracks(
+                                            List<MusicTrack>.from(tracks),
+                                          );
+
+                                  // 현재 트랙 상태 업데이트
+                                  if (firstShuffledTrack != null) {
+                                    await currentTrackNotifier.playTrack(
+                                      firstShuffledTrack,
+                                    );
+                                  } else {
+                                    // 트랙이 없을 경우 처리 (예: 오류 메시지)
+                                    if (!mounted || _disposed) return;
                                     ScaffoldMessenger.of(
-                                      context,
+                                      this.context,
                                     ).hideCurrentSnackBar();
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('셔플 재생 중 오류가 발생했습니다: $e'),
+                                    ScaffoldMessenger.of(
+                                      this.context,
+                                    ).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('셔플할 트랙이 없습니다.'),
                                       ),
                                     );
                                   }
+                                } catch (e) {
+                                  debugPrint('Error in shuffle button: $e');
+                                  if (!mounted || _disposed) return;
+                                  ScaffoldMessenger.of(
+                                    this.context,
+                                  ).hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(
+                                    this.context,
+                                  ).showSnackBar(
+                                    SnackBar(
+                                      content: Text('셔플 재생 중 오류가 발생했습니다: $e'),
+                                    ),
+                                  );
                                 }
                               },
                     ),
@@ -184,17 +254,18 @@ class _PlaylistDetailsScreenState extends ConsumerState<PlaylistDetailsScreen> {
                         : ReorderableListView.builder(
                           itemCount: tracks.length,
                           onReorder: (oldIndex, newIndex) {
+                            // Riverpod 상태를 업데이트하므로 setState는 필요하지 않을 수 있습니다.
+                            // playlistsProvider가 상태를 관리합니다.
                             if (newIndex > oldIndex) newIndex -= 1;
-                            final reorderedTracks = List<MusicTrack>.from(
-                              tracks,
-                            );
-                            final item = reorderedTracks.removeAt(oldIndex);
-                            reorderedTracks.insert(newIndex, item);
+                            final item = tracks.removeAt(oldIndex);
+                            tracks.insert(newIndex, item);
                             ref
                                 .read(playlistsProvider.notifier)
                                 .updatePlaylist(
                                   widget.playlist.id,
-                                  tracks: reorderedTracks,
+                                  tracks: List<MusicTrack>.from(
+                                    tracks,
+                                  ), // 변경된 순서로 업데이트
                                 );
                           },
                           itemBuilder: (context, index) {
@@ -207,112 +278,86 @@ class _PlaylistDetailsScreenState extends ConsumerState<PlaylistDetailsScreen> {
                                 height: 48,
                                 fit: BoxFit.cover,
                               ),
-                              title: Text(
-                                track.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              subtitle: Text(
-                                track.artist,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.download_for_offline_outlined,
-                                    ),
-                                    tooltip: 'Download Track',
-                                    onPressed: () async {
-                                      final musicService = ref.read(
-                                        musicServiceProvider,
+                              title: Text(track.title),
+                              subtitle: Text(track.artist),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete),
+                                onPressed: () {
+                                  // setState(() {
+                                  ref
+                                      .read(playlistsProvider.notifier)
+                                      .removeTrackFromPlaylist(
+                                        widget.playlist.id,
+                                        track.id,
                                       );
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).hideCurrentSnackBar();
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Downloading ${track.title}...',
-                                          ),
-                                        ),
-                                      );
-                                      try {
-                                        await musicService.downloadTrack(track);
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).hideCurrentSnackBar();
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                '${track.title} downloaded.',
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                      } catch (e) {
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).hideCurrentSnackBar();
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Failed to download ${track.title}: $e',
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                      }
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline),
-                                    tooltip: 'Remove from Playlist',
-                                    onPressed: () {
-                                      ref
-                                          .read(playlistsProvider.notifier)
-                                          .removeTrackFromPlaylist(
-                                            widget.playlist.id,
-                                            track.id,
-                                          );
-                                    },
-                                  ),
-                                ],
+                                  // tracks.removeAt(index); // UI는 Riverpod 상태 변경에 따라 자동으로 업데이트됩니다.
+                                  // });
+                                },
                               ),
                               onTap: () async {
-                                try {
-                                  await ref
-                                      .read(playlistTracksProvider.notifier)
-                                      .playPlaylistTracks(
-                                        List<MusicTrack>.from(tracks),
-                                        index,
-                                      );
-                                } catch (e) {
-                                  print(
-                                    'Error playing track from playlist details: $e',
-                                  );
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(
-                                      context,
-                                    ).hideCurrentSnackBar();
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Error playing track: $e',
-                                        ),
-                                      ),
+                                debugPrint(
+                                  '트랙 클릭됨: 제목=${track.title}, 아티스트=${track.artist}, id=${track.id}',
+                                );
+                                final musicService = ref.read(
+                                  musicServiceProvider,
+                                );
+                                final audioPlayer = musicService.audioPlayer;
+                                final currentTrackNotifier = ref.read(
+                                  currentTrackProvider.notifier,
+                                );
+                                final playlistTracksNotifier = ref.read(
+                                  playlistTracksProvider.notifier,
+                                );
+
+                                // 현재 재생 목록에서 이미 선택된 트랙인지 확인 (media_kit 방식)
+                                final currentPlayerPlaylist =
+                                    audioPlayer.state.playlist;
+                                final existingIndex = currentPlayerPlaylist
+                                    .medias
+                                    .indexWhere(
+                                      (media) =>
+                                          media.extras?['music_track']?.id ==
+                                          track.id,
                                     );
-                                  }
+
+                                if (existingIndex != -1 &&
+                                    audioPlayer.state.playing) {
+                                  debugPrint(
+                                    '이미 재생 중인 목록의 트랙입니다. 해당 트랙으로 이동: ${track.title}',
+                                  );
+                                  await audioPlayer.jump(existingIndex);
+                                  await audioPlayer
+                                      .play(); // 이미 재생 중이면 필요 없을 수 있지만, 확실하게 하기 위해
+                                  await currentTrackNotifier.playTrack(
+                                    track,
+                                  ); // 현재 트랙 상태 업데이트
+                                  return;
+                                }
+
+                                // 1. 선택된 트랙을 포함한 전체 플레이리스트 재생 시작
+                                // PlaylistTracksNotifier의 playPlaylistTracks를 사용하여 전체 목록을 로드하고 재생합니다.
+                                // 이렇게 하면 지연 로딩 및 백그라운드 로딩이 적용됩니다.
+                                try {
+                                  await playlistTracksNotifier
+                                      .playPlaylistTracks(tracks, index);
+                                  await currentTrackNotifier.playTrack(track);
+                                } catch (e) {
+                                  debugPrint(
+                                    'Failed to play playlist starting with track ${track.title}: $e',
+                                  );
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(
+                                    this.context,
+                                  ).hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(
+                                    this.context,
+                                  ).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Failed to play track: ${track.title}',
+                                      ),
+                                    ),
+                                  );
                                 }
                               },
                             );
@@ -321,8 +366,10 @@ class _PlaylistDetailsScreenState extends ConsumerState<PlaylistDetailsScreen> {
               ),
             ],
           ),
-          const Align(
-            alignment: Alignment.bottomCenter,
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
             child: EnhancedMusicPlayer(),
           ),
         ],

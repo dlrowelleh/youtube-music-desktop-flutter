@@ -43,15 +43,17 @@ class PlaylistScreen extends ConsumerWidget {
                             PopupMenuItem(
                               child: const Text('Edit'),
                               onTap: () {
-                                Future.delayed(
-                                  const Duration(seconds: 0),
-                                  () => showDialog(
-                                    context: context,
-                                    builder:
-                                        (context) =>
-                                            PlaylistDialog(playlist: playlist),
-                                  ),
-                                );
+                                Future.delayed(const Duration(seconds: 0), () {
+                                  if (context.mounted) {
+                                    showDialog(
+                                      context: context,
+                                      builder:
+                                          (context) => PlaylistDialog(
+                                            playlist: playlist,
+                                          ),
+                                    );
+                                  }
+                                });
                               },
                             ),
                             if (currentTrack != null)
@@ -64,16 +66,18 @@ class PlaylistScreen extends ConsumerWidget {
                                         playlist.id,
                                         currentTrack,
                                       );
-                                  ScaffoldMessenger.of(
-                                    context,
-                                  ).hideCurrentSnackBar();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Added "${currentTrack.title}" to "${playlist.name}"',
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(
+                                      context,
+                                    ).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Added "${currentTrack.title}" to "${playlist.name}"',
+                                        ),
                                       ),
-                                    ),
-                                  );
+                                    );
+                                  }
                                 },
                               ),
                             PopupMenuItem(

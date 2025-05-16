@@ -120,15 +120,13 @@ class SearchResults extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.play_arrow),
             onPressed: () {
-              ref.read(currentTrackProvider.notifier).state = track;
-              ref.read(musicServiceProvider).playTrack(track);
+              ref.read(currentTrackProvider.notifier).playTrack(track);
             },
           ),
         ],
       ),
       onTap: () {
-        ref.read(currentTrackProvider.notifier).state = track;
-        ref.read(musicServiceProvider).playTrack(track);
+        ref.read(currentTrackProvider.notifier).playTrack(track);
       },
     );
   }

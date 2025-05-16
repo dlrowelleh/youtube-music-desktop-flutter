@@ -15,7 +15,6 @@ class AppTheme {
       primary: Colors.red,
       secondary: Colors.redAccent,
       surface: const Color(0xFF1E1E1E),
-      background: const Color(0xFF121212),
     ),
     cardTheme: CardTheme(
       color: const Color(0xFF1E1E1E),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/music_provider.dart';
 import '../widgets/app_navigation_rail.dart';
 
 class HomeSection extends ConsumerWidget {
@@ -8,6 +7,7 @@ class HomeSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final surfaceColor = Theme.of(context).colorScheme.onSurface;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -26,7 +26,12 @@ class HomeSection extends ConsumerWidget {
           Text(
             'Search for your favorite music',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              color: Color.fromRGBO(
+                (surfaceColor.r * 255).round(),
+                (surfaceColor.g * 255).round(),
+                (surfaceColor.b * 255).round(),
+                0.7,
+              ),
             ),
           ),
           const SizedBox(height: 24),

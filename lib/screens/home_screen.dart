@@ -24,7 +24,6 @@ class HomeScreen extends ConsumerWidget {
                 NavigationSection.home => const HomeSection(),
                 NavigationSection.search => const SearchSection(),
                 NavigationSection.playlists => const PlaylistSection(),
-                _ => const HomeSection(),
               };
             },
           ),
