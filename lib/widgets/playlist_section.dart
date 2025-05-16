@@ -19,9 +19,11 @@ class PlaylistSection extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Your Playlists',
-                style: Theme.of(context).textTheme.headlineSmall,
+              Expanded(
+                child: Text(
+                  'Your Playlists',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
               ),
               FilledButton.icon(
                 onPressed: () {

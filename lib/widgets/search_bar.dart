@@ -37,7 +37,7 @@ class _MusicSearchBarState extends ConsumerState<MusicSearchBar> {
     if (!_isSearching) {
       setState(() => _isSearching = true);
     }
-    ref.read(searchResultsProvider.notifier).loadVideo(query.trim());
+    ref.read(searchResultsProvider.notifier).search(query.trim());
   }
 
   @override
@@ -59,7 +59,7 @@ class _MusicSearchBarState extends ConsumerState<MusicSearchBar> {
                     icon: const Icon(Icons.clear),
                     onPressed: () {
                       _searchController.clear();
-                      ref.read(searchResultsProvider.notifier).loadVideo('');
+                      ref.read(searchResultsProvider.notifier).search('');
                       setState(() => _isSearching = false);
                     },
                   )

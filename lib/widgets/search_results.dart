@@ -81,6 +81,9 @@ class SearchResults extends ConsumerWidget {
                                       .read(playlistsProvider.notifier)
                                       .addTrackToPlaylist(playlist.id, track);
                                   Navigator.of(context).pop();
+                                  ScaffoldMessenger.of(
+                                    context,
+                                  ).hideCurrentSnackBar();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(

@@ -64,6 +64,9 @@ class PlaylistScreen extends ConsumerWidget {
                                         playlist.id,
                                         currentTrack,
                                       );
+                                  ScaffoldMessenger.of(
+                                    context,
+                                  ).hideCurrentSnackBar();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(

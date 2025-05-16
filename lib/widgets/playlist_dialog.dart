@@ -130,6 +130,7 @@ class _PlaylistDialogState extends ConsumerState<PlaylistDialog> {
               final url = _urlController.text.trim();
               if (!url.contains('youtube.com/playlist?list=') &&
                   !url.contains('youtu.be/playlist?list=')) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Please enter a valid YouTube playlist URL'),
@@ -172,6 +173,7 @@ class _PlaylistDialogState extends ConsumerState<PlaylistDialog> {
                 if (!mounted) return;
                 Navigator.of(context).pop();
               } catch (e) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
